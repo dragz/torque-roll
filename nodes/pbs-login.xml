@@ -1,0 +1,30 @@
+<?xml version="1.0" standalone="no"?>
+
+
+<kickstart>
+
+  <description>
+
+  PBS Login Node Configuration.  Install torque and maui, but do not start any daemons.
+
+  </description>
+
+  <changelog>
+    Copied and adapted from pbs-mom.xml
+  </changelog>
+
+
+<post>
+
+
+<file name="/opt/maui/maui.cfg">
+        SERVERHOST              &Kickstart_PrivateHostname;.&Kickstart_PrivateDNSDomain;
+        SERVERPORT              42559
+        CLIENTTIMEOUT           00:02:00
+</file>
+
+</post>
+
+
+</kickstart> 
+

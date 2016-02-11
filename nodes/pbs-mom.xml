@@ -1,0 +1,188 @@
+<?xml version="1.0" standalone="no"?>
+
+
+<kickstart>
+
+  <description>
+
+  PBS Mom Server Configuration.  This is an example of how to use the
+  "eval" tag.  In this case a small Python script is used to build the
+  shell code that builds the config file in the post section of the
+  kickstart file.
+
+  </description>
+
+  <changelog>
+  $Log: pbs-mom.xml,v $
+  Revision 1.12  2006/10/02 19:43:35  royd
+  backed out clienthost setting in mom_config. It was just a test anyway.
+
+  Revision 1.11  2006/09/08 22:02:17  royd
+  added clienthost back in. Why it is needed beats me.
+
+  Revision 1.10  2006/01/12 08:07:14  royd
+  Changed clienthost to pbsserver in mom config due to changes in
+  torque 2.0.0p5.
+  Also deleted the extra clienthost lines for localhost to avoid the mom
+  polling itself.  torque now supports multiple pbs_servers, maybe something
+  to look into one day?
+
+  Revision 1.9  2005/03/04 01:40:11  mjk
+  massive graph cleanup
+
+  Revision 1.8  2004/10/22 11:57:52  royd
+  Further mods to accomodate the change in network setup in 3.3.0.
+  config for mom needs to have the local domain in clienthost and
+  public domain for usecp.  YIKES!!!
+
+  Revision 1.7  2004/10/22 08:00:02  royd
+  Changed mom config to accept a frontend on the local domain.
+
+  Revision 1.6  2004/01/27 20:07:48  royd
+  Changes to use torque instead of storm.
+
+  Revision 1.5  2004/01/19 14:14:38  royd
+  Added code to start the mom on the compute nodes.
+
+  Revision 1.4  2004/01/16 09:35:18  royd
+  The frontends name needs to be the first one in moms config file or else it wont talk to the server, this wasn't needed for OpenPBS, probably a bug in SPBS.
+
+  Revision 1.3  2004/01/15 22:11:37  royd
+  Changes for SPBS and Maui 3.2.6
+
+  Revision 1.2  2003/10/29 18:48:43  mjk
+  burn older PBS bride (OpenPBS only now)
+
+  Revision 1.1  2003/10/29 18:15:26  mjk
+  start pbs roll
+
+  Revision 1.5  2003/08/12 16:35:13  bruno
+  still dorkin with the public/private hostname stuff
+
+  Revision 1.4  2003/08/11 23:16:14  bruno
+  changed pbs mom config files to refer to the public name of the frontend
+
+  Revision 1.3  2003/07/21 19:30:40  bruno
+  domain name fix for pbs_mom config file
+
+  Revision 1.2  2003/07/16 18:52:45  bruno
+  changes all file creation code to use 'file' tag
+
+  Revision 1.1  2003/07/07 20:47:51  bruno
+  initial release
+
+  Revision 1.11  2003/01/22 20:09:46  bruno
+  added more lines
+
+  Revision 1.10  2003/01/15 20:26:18  bruno
+  fixes to enable openpbs
+
+  Revision 1.9  2002/10/10 00:54:52  mjk
+  Added close() to the database after using it
+
+  Revision 1.8  2002/07/11 23:13:31  bruno
+  fixed more 'frontend-0' hardcoded badness
+
+  Revision 1.7  2002/06/17 19:50:02  bruno
+  7.3-isms
+
+  Revision 1.6  2002/05/21 22:36:49  bruno
+  more bugs found with ia64 and openpbs
+
+  Revision 1.5  2002/05/21 19:15:22  bruno
+  ia64 and OpenPBS configuration
+
+  Revision 1.4  2001/10/18 20:06:45  mjk
+  Changes groups table to memberships
+
+  Revision 1.3  2001/10/18 15:51:16  bruno
+  death to the 'models' table!
+
+  Revision 1.2  2001/09/14 21:45:42  mjk
+  - Testing on ia32 compute nodes
+  - A CGI kickstart takes 5 seconds
+  - Working on ia64 compute nodes
+
+  Revision 1.1  2001/09/05 00:27:18  mjk
+  main and packages section is correct for compute nodes
+
+  </changelog>
+
+
+<post>
+<eval shell="python">
+import sys
+import os
+import rocks.sql
+
+class App(rocks.sql.Application):
+	def __init__(self, argv):
+		rocks.sql.Application.__init__(self, argv)
+
+	def run(self):
+		self.connect()
+
+		# Get the name of the PBS master.  This should be the
+		# name of the frontend machine.
+		
+		try:
+			master = "&Kickstart_PrivateHostname;"
+			domainname = "&Kickstart_PrivateDNSDomain;"
+			publicdomainname = "&Kickstart_PublicDNSDomain;"
+		except:
+			master = 'frontend-0'
+			domainname = 'public'
+			publicdomainname = 'public'
+      
+
+		print "cat &gt;",
+		print "/var/spool/torque/mom_priv/config",
+		print "&lt;&lt; 'EOF'"
+                print '$pbsserver %s.%s' % (master, domainname)
+
+		self.execute("select nodes.name from"
+		        " nodes,memberships,appliances"
+			" where nodes.membership = memberships.id and"
+			" memberships.appliance = appliances.id and"
+                        " (appliances.name = 'frontend' or"
+                        "  appliances.name = 'nas')")
+
+		for host, in self.fetchall():
+			print '$usecp %s.%s:/home /home' % (host, publicdomainname)
+
+		self.close()
+	        print 'EOF'
+
+app = App(sys.argv)
+app.run()
+
+</eval>
+
+
+<file name="/etc/sysconfig/pbs_mom">
+SBIN_PATH=/opt/torque/sbin
+# NOTE: hostname flag must match what is listed in nodelist
+PBS_DAEMON="$SBIN_PATH/pbs_mom -A &hostname;"
+PBS_HOME=/var/spool/torque
+</file>
+
+
+# delay the addition of the service until we are absolutely sure we have a fully 
+# configured system.  If the service is activated in post itself it might be
+# started during the install phase before the system is ready.
+touch /opt/torque/firstboot
+
+<file name="/etc/rc.d/rc.local" mode="append">
+if [ -e /opt/torque/firstboot ]; then
+  /sbin/chkconfig --add pbs_mom
+  /sbin/chkconfig pbs_mom on
+  /sbin/service pbs_mom start
+  rm /opt/torque/firstboot
+fi
+</file>
+
+</post>
+
+
+</kickstart> 
+

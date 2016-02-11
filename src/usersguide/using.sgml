@@ -1,0 +1,131 @@
+<chapter id="using" xreflabel="Using the Grid Roll">
+
+<title>Using</title>
+
+<section>
+<title>Do I need Torque?</title>
+
+<para>
+Well, that depends.  If you run a small departemental cluster where
+all the users can agree among themselves when and where to run their
+jobs, you probably don't need a queueing system at all.  But, if you
+have too few machines and users start stepping on each others feet you
+definitely need one.
+</para>
+
+<para>
+How does Torque compare to SGE?  Don't know, I've never tried SGE, go
+figure out yourself what you like best.  Torque (or rather PBS) and Maui has been around
+for a long time and has a lot of features that come in handy when you
+try to keep your users satisfied sustaining a reasonable job throughput.
+</para>
+
+</section>
+
+<section id="launching-serial-jobs">
+<title>Launching serial jobs</title>
+<para>
+The easiest way to run jobs is to create a job script that contains
+your job setup.
+</para>
+
+<para>
+Simple job script example:
+<screen>
+$ cat simple-jobscript.sh
+#!/bin/bash
+
+#PBS -lwalltime=0:10:0
+
+echo starting
+sleep 10
+echo ending
+</screen>
+
+Comments beginning with <literal>#PBS</literal> is meaningful to the
+queueing system, here we ask it to reserve 10 minutes for the job, if
+the job runs longer than that it will be killed.  You submit the job
+to the queue with <literal>qsub</literal>:
+<screen>
+$ qsub simple-jobscript.sh
+553.snowstorm.public
+$
+</screen>
+<literal>qsub</literal> answers with the job id it has assigned to the
+job, and you can use this to get information about it later:
+<screen>
+$ showq
+ACTIVE JOBS--------------------
+JOBNAME            USERNAME      STATE  PROC   REMAINING            STARTTIME
+
+553                   usera    Running     1    00:10:00  Fri Feb 13 10:39:25
+549                   userb    Running     1     3:37:10  Fri Feb 13 09:16:35
+541                   userc    Running     1     7:47:17  Thu Feb 12 12:26:42
+551                   userd    Running     1     9:51:43  Fri Feb 13 10:31:08
+552                   userd    Running     1     9:54:00  Fri Feb 13 10:33:25
+534                   userd    Running     1  2:09:48:33  Wed Feb 11 16:27:58
+547                   userb    Running     1  9:22:38:52  Thu Feb 12 23:18:17
+536                   usere    Running     8 19:01:04:56  Thu Feb 12 09:44:21
+
+     8 Active Jobs      15 of   18 Processors Active (83.33%)
+                         8 of    9 Nodes Active      (88.89%)
+
+IDLE JOBS----------------------
+JOBNAME            USERNAME      STATE  PROC     WCLIMIT            QUEUETIME
+
+
+0 Idle Jobs
+
+BLOCKED JOBS----------------
+JOBNAME            USERNAME      STATE  PROC     WCLIMIT            QUEUETIME
+
+
+Total Jobs: 8   Active Jobs: 8   Idle Jobs: 0   Blocked Jobs: 0
+
+</screen>
+<literal>showq</literal> is a maui command, you can also use the pbs
+command <literal>qstat</literal> to get similar information:
+<screen>
+$ qstat
+Job id           Name             User             Time Use S Queue
+---------------- ---------------- ---------------- -------- - -----
+534.snowstorm    TpaFeOOH-s1_opt  userd            42:10:20 R default
+536.snowstorm    md7              usere            00:00:00 R default
+541.snowstorm    mitgcm.run       userc            22:11:20 R default
+547.snowstorm    hfdaQ            userb            11:17:10 R default
+549.snowstorm    hfaQ             userb            01:22:14 R default
+551.snowstorm    FePh-s1_B1       userd            00:07:46 R default
+552.snowstorm    FePh-s1_A1       userd            00:04:59 R default
+553.snowstorm    simple-jobscrip  usera                   0 R default
+</screen>
+</para>
+
+</section>
+
+<section>
+<title>Launching parallel jobs</title>
+
+<para>
+The preferred way of launching mpi jobs is to use the
+<literal>mpiexec</literal> utility, it uses the tm-interface of PBS to
+start the jobs, which is a lot faster than mpirun that uses ssh to
+start jobs on the nodes.  Applications must be linked with the mpi
+library in <literal>/opt/mpich/gnu/</literal> for mpiexec to be able
+to start them.  Here is an example:
+<screen>
+$ cat parallel-jobscript.sh
+#!/bin/bash
+
+#PBS -lwalltime=0:10:0
+#PBS -lnodes=4
+
+echo starting
+mpiexec some-mpi-app
+echo ending
+</screen>
+Here we ask for 4 nodes and mpiexec will pick up the nodelist from the
+queueing system and start the job on the correct nodes.
+</para>
+</section>
+
+</chapter>

@@ -1,0 +1,111 @@
+#!/usr/bin/python -E
+#(the -E is to avoid influences from bad environments that mess up PYTHONPATH/PYTHONHOME)
+#
+# Roy Dragseth <roy.dragseth@uit.no>
+
+import os, sys
+from socket import getfqdn
+
+SHORT_INFORMATION="""
+This is a wrapper script intended to replace ssh/rsh for launching parallel applications.
+It will only work within a batch job in the torque queueing system.
+For more info run pbsdshwrapper --info.
+"""
+
+VERBOSE_INFORMATION="""
+ This wrapper is intended as a ssh replacement for mpi implementations and other parallel 
+ application frameworks that do not provide tight integration with torque.  This setup
+ is tested with HP-MPI and openmpi compiled without the tm interface.  The recommended
+ solution for openmpi is to recompile it with tm support, this wrapper must be
+ considered as a last option.
+ 
+ For mpich and derivatives use the mpiexec launcher from OSC instead of this hack.
+
+ This wrapper pretends to be ssh and just massages the command line arguments that the application
+ sends to ssh so that it fits with what pbsdsh expects.
+
+ How to use this wrapper:
+ 
+ OpenMPI 1.3.X and above:
+ export OMPI_MCA_plm_rsh_agent="pbsdshwrapper.py"
+
+ then run with
+
+ mpirun --hostfile $PBS_NODEFILE ........
+
+ (Note that a better solution for openmpi is to compile it with native support
+ for torque.  Then you do not need this script.)
+
+ HP-MPI:  set the MPI_REMSH variable
+ export MPI_REMSH=/opt/torque/bin/pbsdshwrapper.py
+ 
+ then launch the application as normal.
+
+ This wrapper is inspired by hint at http://www.scm.com/forums/viewtopic.php?p=575
+ 
+ Please send bug reports and suggestions to roy.dragseth@uit.no
+"""
+
+# only used for debugging in development.
+DRY_RUN=False
+
+def print_info():
+    global VERBOSE_INFORMATION
+    print VERBOSE_INFORMATION
+
+def massage_options():
+    
+    if len(sys.argv) == 1:
+        print SHORT_INFORMATION
+        sys.exit()
+        
+    if sys.argv[1] == "--info":
+        print VERBOSE_INFORMATION
+        sys.exit()
+
+    if not os.environ.has_key('PBS_NODEFILE'):
+        print SHORT_INFORMATION
+        sys.exit()
+
+    # we strip everything before the first valid hostname on the commandline
+    index_of_hostname = find_hostname_position(sys.argv)
+    if index_of_hostname:
+        args = sys.argv[index_of_hostname:]
+    else:
+        print "%s: Cannot find a valid hostname that match anything in $PBS_NODEFILE"%(sys.argv[0])
+        args = sys.argv[1:] 
+        #sys.exit(1)
+    
+    return args
+    
+def find_hostname_position(args):
+    # We assume that the hostname will be one of the hosts provided in
+    # $PBS_NODEFILE
+    pbs_nodefile = file(os.environ['PBS_NODEFILE']).read()
+    nodelist = pbs_nodefile.split()
+    for (i, a) in enumerate(args):
+        if a in nodelist:
+            return i
+    return None
+
+def get_host_and_command():
+    args = massage_options()
+    remote_host = getfqdn(args[0])
+    command = str(" ").join(args[1:])
+    return remote_host, command
+
+def main():    
+    global DRY_RUN
+    hostname, remote_command = get_host_and_command()
+    
+    # tm_spawn runs exec not a full shell, so wrap everything in a login shell to resolve path issues.
+    # this also make mpirun --prefix work (openmpi).  Using a login shell creates overhead, but if you
+    # are worried about performance you should recompile openmpi with --with-torque=/path/to/torque
+    cmd = "pbsdsh -h %s /bin/sh -l -c '%s'"%(hostname, remote_command)
+    #print cmd
+    if DRY_RUN:
+        cmd = "echo "+cmd
+    os.system(cmd)
+
+if __name__ == "__main__":
+    main()

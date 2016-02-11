@@ -1,0 +1,166 @@
+<?xml version="1.0" standalone="no"?>
+
+
+
+<kickstart>
+
+  <description>
+
+  Portable Batch System
+
+  </description>
+
+  <changelog>
+  $Log: pbs-common.xml,v $
+  Revision 1.14  2007/09/20 12:31:33  royd
+  Increased some system parameters to support larger clusters.
+
+  Revision 1.13  2006/09/07 07:47:11  royd
+  added pbstools
+
+  Revision 1.12  2005/06/07 11:53:49  royd
+  Added the pbs_python package.
+
+  Revision 1.11  2005/03/04 01:40:11  mjk
+  massive graph cleanup
+
+  Revision 1.10  2005/02/01 23:55:35  mjk
+  Do not use the roll="name" attribute of the package tags anymore, the
+  make roll step will do this for you.
+
+  Revision 1.9  2004/11/25 19:49:43  royd
+  Drop the compat lib installation.
+
+  Revision 1.8  2004/07/02 23:31:42  fds
+  PBS roll now made with x86 compat libs for opteron.
+
+  Revision 1.7  2004/02/13 12:29:58  royd
+  Added /opt/torque/man to man.config.
+
+  Revision 1.6  2004/01/28 22:39:48  royd
+  Changes and additions for mpiexec.
+
+  Revision 1.5  2004/01/27 20:07:48  royd
+  Changes to use torque instead of storm.
+
+  Revision 1.4  2004/01/19 14:15:52  royd
+
+  Using storm instead of SPBS, just an new name, same shit new wrapping.
+
+  Revision 1.3  2004/01/15 22:11:37  royd
+  Changes for SPBS and Maui 3.2.6
+
+  Revision 1.2  2003/10/29 18:48:43  mjk
+  burn older PBS bride (OpenPBS only now)
+
+  Revision 1.1  2003/10/29 18:15:26  mjk
+  start pbs roll
+
+  Revision 1.5  2003/08/12 16:35:13  bruno
+  still dorkin with the public/private hostname stuff
+
+  Revision 1.4  2003/08/11 23:16:14  bruno
+  changed pbs mom config files to refer to the public name of the frontend
+
+  Revision 1.3  2003/08/09 14:22:15  bruno
+  changed pbs and maui to use public name on frontend
+
+  Revision 1.2  2003/07/16 18:52:45  bruno
+  changes all file creation code to use 'file' tag
+
+  Revision 1.1  2003/07/07 20:47:51  bruno
+  initial release
+
+  Revision 1.3  2002/05/28 22:27:09  bruno
+  more openpbs tweaks
+
+  Revision 1.2  2002/05/22 00:19:30  bruno
+  ia64
+
+  Revision 1.1  2002/05/21 19:15:22  bruno
+  ia64 and OpenPBS configuration
+
+  Revision 1.2  2001/09/18 17:39:52  mjk
+  *** empty log message ***
+
+  Revision 1.1  2001/09/05 00:27:18  mjk
+  main and packages section is correct for compute nodes
+
+  </changelog>
+
+
+  <package>torque</package>
+  <package>mpiexec</package>
+  <package>pbs_python</package>
+  <package>pbstools</package>
+  <package>torque-openmpi</package>
+
+<post>
+
+<file name="/etc/sysconfig/trqauthd">
+PBS_DAEMON=/opt/torque/sbin/trqauthd
+PBS_HOME=/var/spool/torque
+</file>
+chkconfig --add trqauthd
+chkconfig trqauthd on
+
+<file name="/var/spool/torque/server_name">
+&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+</file>
+
+
+<file name="/etc/man.config" mode="append">
+MANPATH /opt/torque/man
+</file>
+
+# Changes for big clusters
+<file name="/etc/security/limits.conf" mode="append">
+*   -   memlock     -1
+*   -   stack       -1
+*   -   nofile      4096
+</file>
+# these are also needed in the pbs startup scripts.
+# just hack them into the beginning
+sed -i -e 20i"ulimit -l unlimited" /etc/init.d/pbs_mom
+sed -i -e 20i"ulimit -s unlimited" /etc/init.d/pbs_mom
+sed -i -e 20i"ulimit -n 4096" /etc/init.d/pbs_mom
+
+
+<file name="/etc/sysctl.conf" mode="append">
+fs.file-max = 65536
+#recommended values for large cluster from clusterresources.com
+# Don't allow the arp table to become bigger than this
+net.ipv4.neigh.default.gc_thresh3 = 4096
+# Tell the gc when to become aggressive with arp table cleaning.
+# Adjust this based on size of the LAN.
+net.ipv4.neigh.default.gc_thresh2 = 2048
+# Adjust where the gc will leave arp table alone
+net.ipv4.neigh.default.gc_thresh1 = 1024
+# Adjust to arp table gc to clean-up more often
+net.ipv4.neigh.default.gc_interval = 3600
+# ARP cache entry timeout
+net.ipv4.neigh.default.gc_stale_time = 3600
+</file>
+
+<file name="/etc/profile.d/pbs-maui.sh" perms="755">
+export PATH=$PATH:/opt/maui/bin:/opt/torque/bin:/opt/torque/sbin
+
+export MANPATH=/opt/torque/man:$MANPATH
+</file>
+
+<file name="/etc/profile.d/pbs-maui.csh" perms="755">
+set path = ( $path /opt/maui/bin /opt/torque/bin /opt/torque/sbin )
+
+if ( $?MANPATH ) then
+  setenv MANPATH /opt/torque/man:"$MANPATH"
+else
+  setenv MANPATH /opt/torque/man
+endif
+</file>
+
+
+</post>
+
+
+</kickstart> 
+

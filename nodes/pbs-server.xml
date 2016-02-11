@@ -1,0 +1,223 @@
+<?xml version="1.0" standalone="no"?>
+
+<kickstart>
+
+	<description>
+
+	PBS Server Configuration. 
+
+	</description>
+
+	<changelog>
+	$Log: pbs-server.xml,v $
+	Revision 1.23  2006/10/23 12:43:07  royd
+	Fix for the service pack bug that actually works.  Postpone the initialization
+	until the first bootup since we cannot do it in post afterall because then the
+	hostname is localhost which doesn't work with the administrator domains set
+	in pbs.default.  This should work for all future "evil" rolls that do
+	insert-ethers --update
+	during post after "chkconfig pbs_server on" is executed.  This wouldn't be
+	neccessary if everyone would use --norestart also, but that cannot be assumed.
+	
+	Revision 1.22  2006/10/22 19:45:37  royd
+	Do the queue setup to the post install section.
+	
+	Revision 1.21  2006/10/13 12:37:12  royd
+	The fix for rndc from the 4.2.1 service pack roll
+	
+	Revision 1.20  2005/06/10 12:25:26  royd
+	Cleaning up the pbs_server init script.
+	pbs_server can now start without a nodelist, so the localhost dummy is
+	not needed anymore.  Also removed the reinitialization of the hostlist
+	through dbreport at every (re)start.  The insert-ethers plugin is
+	supposed to take care of the hostlist maintenance.
+	
+	Revision 1.19  2005/03/14 21:17:50  fds
+	Insert-ethers plugin for pbs.
+	
+	Revision 1.18  2005/03/04 01:40:11  mjk
+	massive graph cleanup
+	
+	Revision 1.17  2005/02/01 23:55:35  mjk
+	Do not use the roll="name" attribute of the package tags anymore, the
+	make roll step will do this for you.
+	
+	Revision 1.16  2005/01/27 08:46:40  royd
+	added -t quick to qterm to make jobs survive restarts
+	
+	Revision 1.15  2004/05/21 18:34:51  bruno
+	install PBS docs on the frontend
+	
+	Revision 1.14  2004/04/15 12:51:14  royd
+	Tweaks to make xpbs and xpbsmon work.
+	
+	Revision 1.13  2004/04/13 20:55:36  fds
+	Tweaks
+	
+	Revision 1.12  2004/02/18 19:50:19  fds
+	Include new pbs-ganglia rpm.
+	
+	Revision 1.11  2004/02/18 19:46:51  fds
+	Added Ganglia Monitoring of PBS.
+	
+	Revision 1.10  2004/02/13 09:38:06  royd
+	Added the ability for users to see all jobs in the default setup.
+	
+	Revision 1.9  2004/01/27 20:07:48  royd
+	Changes to use torque instead of storm.
+	
+	Revision 1.8  2004/01/23 08:03:52  royd
+	Removed ugly hacks because the storm dev. group has fixed the bugs I reported.
+	
+	Revision 1.7  2004/01/21 14:51:32  royd
+	Ugly workarounds for bugs in storm.
+	
+	Revision 1.6  2004/01/19 14:15:52  royd
+	
+	Using storm instead of SPBS, just an new name, same shit new wrapping.
+	
+	Revision 1.5  2004/01/15 22:11:37  royd
+	Changes for SPBS and Maui 3.2.6
+	
+	Revision 1.4  2003/11/07 17:45:43  mjk
+	added PBS profile.d scripts
+	
+	Revision 1.3  2003/10/29 23:13:16  mjk
+	roll builds
+	
+	Revision 1.2  2003/10/29 18:48:43  mjk
+	burn older PBS bride (OpenPBS only now)
+	
+	Revision 1.1  2003/10/29 18:15:26  mjk
+	start pbs roll
+
+	Revision 1.1  2003/07/07 20:47:51  bruno
+	initial release
+
+	Revision 1.4  2002/05/21 19:15:22  bruno
+	ia64 and OpenPBS configuration
+
+	Revision 1.3  2001/10/02 03:16:40  mjk
+	- Update to bruno's new auto-part stuff
+	- Doesn't work but checkin anyway
+
+	Revision 1.2  2001/09/05 00:27:18  mjk
+	main and packages section is correct for compute nodes
+
+	</changelog>
+
+	<package>roll-torque-usersguide</package>
+
+<!-- 	<package>pbs-config-sql</package> -->
+	<package>pbs-dbreport</package>
+	<package>pbs-ganglia</package>
+	<package>pbs-insert-ethers</package>
+	<package>rocks-command-torque</package>
+	<package>mauiweb</package>
+
+
+
+<post>
+
+<!--Set the pbs attribute so other rolls can conditionally link in xml-nodes from
+this roll-->
+/opt/rocks/bin/rocks set appliance attr compute pbs true
+
+
+<file name="/opt/torque/pbs.default">
+#
+# Create and define queue default
+#
+create queue default
+set queue default queue_type = Execution
+set queue default keep_completed = 120
+set queue default enabled = True
+set queue default started = True
+#
+# Set server attributes.
+#
+set server scheduling = True
+set server acl_host_enable = False
+set server server_name = &Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+set server managers = maui@&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+set server managers += maui@&Kickstart_PrivateHostname;.&Kickstart_PrivateDNSDomain;
+set server managers += root@&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+set server managers += root@&Kickstart_PrivateHostname;.&Kickstart_PrivateDNSDomain;
+set server default_queue = default
+set server log_events = 511
+set server mail_from = adm
+set server query_other_jobs = True
+set server allow_node_submit = True
+set server moab_array_compatible = True
+</file>
+
+# make pbs_server listen on private interface
+<file name="/etc/sysconfig/pbs_server">
+PBS_DAEMON="/opt/torque/sbin/pbs_server"
+</file>
+
+<!-- start the appropriate services -->
+<file name='/etc/rc.d/rc.local' mode='append'>
+# initialize the queuing setup on first boot
+if [ -x /opt/torque/init_database ]; then
+    sh /opt/torque/init_database
+    chmod -x /opt/torque/init_database
+fi
+</file>
+
+<file name="/opt/torque/init_database" perms="755">
+#!/bin/sh
+
+serverdb=/var/spool/torque/server_priv/serverdb
+if [ -e $serverdb ]; then
+    echo "$serverdb already exists! Aborting initialization."
+    echo "Remove $serverdb and try running $0 again."
+    exit
+fi
+
+export PATH+=":/opt/rocks/bin:/opt/torque/bin"
+/sbin/chkconfig --add pbs_server 
+/sbin/chkconfig pbs_server on
+/sbin/service pbs_server create
+/sbin/service pbs_server start
+sleep 5
+qmgr &lt; /opt/torque/pbs.default
+rocks report pbsnodes | sh
+pbsnodes -l offline | awk '{print $1}' | xargs  pbsnodes -c
+</file>
+
+<!-- setup for xpbs and xpbsmon -->
+<file name="/opt/torque/lib/xpbs/xpbsrc" mode="append">
+*serverHosts: &Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+*selectHosts: &Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+*selectQueues: default@&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+</file>
+
+<file name="/opt/torque/lib/xpbsmon/xpbsmonrc" mode="append">
+*sitesInfo:             {Local;ICON;&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;;&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;;;;}
+</file>
+
+<!-- Rocks PBS job queue monitor -->
+<!--<file name="/var/www/html/homepage/24-queue.html">
+&lt;a href="ganglia/addons/rocks/queue.php"&gt;
+PBS Job Queue&lt;/a&gt;
+</file>-->
+
+
+<file name="/etc/torque-roll.conf">
+[DEFAULT]
+# set update_node_list to 0 if you do not want automatic updates
+# to the nodelist when you add or remove nodes. You will then have
+# to update the nodelist in /opt/torque/server_priv/nodes manually.
+update_node_list = 1
+</file>
+
+# add firewall rules to block external access to the pbs ports (CVE-2011-2907)
+rocks add firewall appliance=Frontend network=public protocol=udp service=15001 chain=INPUT action=REJECT rulename=R100-PBS_SERVER
+rocks add firewall appliance=Frontend network=public protocol=udp service=1023 chain=INPUT action=REJECT rulename=R110-PBS_SERVER
+rocks add firewall appliance=Frontend network=public protocol=tcp service=15001 chain=INPUT action=REJECT rulename=R105-PBS_SERVER
+
+</post>
+
+</kickstart> 
+

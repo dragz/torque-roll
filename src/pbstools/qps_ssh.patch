@@ -1,0 +1,11 @@
+--- ./bin/qps.orig	2007-09-14 14:14:50.419510731 +0200
++++ ./bin/qps	2007-09-14 14:15:07.857273507 +0200
+@@ -45,7 +45,7 @@
+ 	system("$all -p $nl $cmd");
+     } else {
+ 	for $node (@nodes) {
+-	    my $rsh = "rsh $node $cmd";
++	    my $rsh = "ssh $node $cmd";
+ 	    if (! $show_all) {
+ 		$rsh .= " | egrep -v '^00:00:00'";
+ 	    }

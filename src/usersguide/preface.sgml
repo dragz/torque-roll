@@ -1,0 +1,21 @@
+<preface id="preface" xreflabel="preface">
+<title>Preface</title>
+
+
+<para>
+
+The Torque Roll installs and configures the Terascale Open Resource Manager and the Maui
+scheduler.
+
+</para>
+
+
+<para>
+
+Please visit the <ulink url="http://www.clusterresources.com/">Clusterresources Inc.
+site</ulink> to learn more about their release and the individual
+software components.
+
+</para>
+
+</preface>

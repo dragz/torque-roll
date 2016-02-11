@@ -1,0 +1,5 @@
+VERSION = 0.84
+PATCHLEVEL = 
+RELEASE = 1
+VENDOR = 
+MAKE.rpmflag = -ba

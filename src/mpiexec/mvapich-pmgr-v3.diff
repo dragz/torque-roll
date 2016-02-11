@@ -1,0 +1,149 @@
+Index: ib.c
+===================================================================
+RCS file: /cvs/mpiexec/ib.c,v
+retrieving revision 1.5
+diff -u -p -r1.5 ib.c
+--- ib.c	14 Jun 2005 20:36:24 -0000	1.5
++++ ib.c	27 Jul 2005 15:43:43 -0000
+@@ -75,6 +75,8 @@ read_ib_startup_ports(void)
+ {
+     char *address = 0;
+     int address_size = 0;
++    char *pids = 0;
++    int pids_size = 0;
+     int i, flags, *fds;
+     int numleft;
+     int version = -1;
+@@ -105,6 +107,7 @@ read_ib_startup_ports(void)
+ 
+     for (i=0; i<numtasks; i++) {
+ 	int fd, testvers, rank, addrlen, non_versioned_092;
++	pid_t pidlen;
+ 
+ 	/*
+ 	 * Wait for a connection.
+@@ -146,6 +149,16 @@ read_ib_startup_ports(void)
+ 	 *    addrlen  # np * 4 + 4
+ 	 *    addrs[]  # np * <4-byte binary qpn>..., <4-byte hostid>
+ 	 *
++	 * >= 0.9.5 (with at least patch 112) say:
++	 *    version  # 3
++	 *    rank     # 0..np-1
++	 *    addrlen  # np * 4 + 4
++	 *    addrs[]  # np * <4-byte binary qpn>..., <4-byte hostid>
++	 *    pidlen   # 4-byte number of characters in pid
++	 *    pid[]    # binary pid
++	 *
++	 * In the MVAPICH source, this version is called "pmgr_version".
++	 *
+ 	 * Version 1:
+ 	 *   Read all addrs[], concatenate them in process order, send the
+ 	 *   whole lot to back to each process.
+@@ -162,6 +175,9 @@ read_ib_startup_ports(void)
+ 	 *     np..2*np-1   : personalized qp info
+ 	 *     2*np..3*np-1 : hostids
+ 	 *
++	 * Verison 3:
++	 *   Same as 2 with addition of pid array.  We send back the
++	 *   entire array of pids (unpersonalized) after the addresses array.
+ 	 */
+ 	read_full(fd, &testvers, sizeof(int));
+ 	read_full(fd, &rank, sizeof(int));
+@@ -196,11 +212,11 @@ read_ib_startup_ports(void)
+ 
+ 	if (version == -1) {
+ 	    version = testvers;
+-	    if (!(version == 1 || version == 2)) {
++	    if (!(version == 1 || version == 2 || version == 3)) {
+ 		warning(
+ 		  "%s: protocol version %d not known, but might still work",
+ 		  __func__, version);
+-		version = 2;  /* guess the latest still works */
++		version = 3;  /* guess the latest still works */
+ 	    }
+ 	    if (cl_args->verbose)
+ 		printf("%s: version %d startup%s\n", __func__, version,
+@@ -243,6 +259,22 @@ read_ib_startup_ports(void)
+ 	} else {
+ 	    read_full(fd, address + rank * address_size, address_size);
+ 	}
++
++	if (version >= 3) {
++	    read_full(fd, &pidlen, sizeof(pidlen));
++	    if (!pids) {
++		pids_size = pidlen;
++		pids = Malloc(pids_size * numtasks);
++	    } else {
++		if (pidlen != pids_size)
++		    error(
++		      "%s: wrong pid size from rank %d, got %d, expected %d",
++		      __func__, rank, pidlen, pids_size);
++	    }
++	    if (pids_size > 0)
++		read_full(fd, &pids[rank * pids_size], pids_size);
++	}
++
+ 	if (cl_args->verbose)
+ 	    printf("%s: rank %d checked in, %d left\n", __func__, rank,
+ 	      numtasks-1-i);
+@@ -262,7 +294,7 @@ read_ib_startup_ports(void)
+ 	    if (write_full(fds[i], address, numtasks * address_size) < 0)
+ 		error_errno("%s: write addresses to rank %d", __func__, i);
+ 	}
+-    } else if (version == 2) {
++    } else if (version == 2 || version == 3) {
+ 	int outsize = 3 * numtasks * sizeof(int);
+ 	int *outaddrs = Malloc(outsize);
+ 	int *inaddrs = (int *) (unsigned long) address;
+@@ -281,6 +313,13 @@ read_ib_startup_ports(void)
+ 		error_errno("%s: write addresses to rank %d", __func__, i);
+ 	}
+ 	free(outaddrs);
++	if (version == 3) {
++	    for (i=0; i<numtasks; i++) {
++		if (write_full(fds[i], pids, pids_size * numtasks) < 0)
++		    error_errno("%s: write pids to rank %d", __func__, i);
++	    }
++	    free(pids);
++	}
+     } else
+ 	error("%s: programmer error, unknown version %d", __func__, version);
+ 
+Index: start_tasks.c
+===================================================================
+RCS file: /cvs/mpiexec/start_tasks.c,v
+retrieving revision 1.57
+diff -u -p -r1.57 start_tasks.c
+--- start_tasks.c	14 Jun 2005 20:36:24 -0000	1.57
++++ start_tasks.c	27 Jul 2005 15:43:43 -0000
+@@ -416,10 +416,30 @@ start_tasks(void)
+     }
+     
+     if (cl_args->comm == COMM_MPICH_IB || cl_args->comm == COMM_MPICH_RAI) {
++	int len;
++	char *cp, *cq, *cr;
+ 	env_add("MPIRUN_HOST", nodes[0].name);  /* master address */
+ 	env_add_int("MPIRUN_PORT", master_port);
+ 	env_add_int("MPIRUN_NPROCS", numtasks);
+ 	env_add_int("MPIRUN_ID", atoi(jobid));  /* global job id */
++	/*
++	 * pmgr_version >= 3 needs this terribly long string in every task.
++	 * Since it may be quite large, we do the allocation by hand and
++	 * skip some growstr overhead.
++	 */
++	len = numtasks;  /* separating colons and terminal \0 */
++	for (i=0; i<numtasks; i++)
++	    len += strlen(nodes[tasks[i].node].name);
++	cq = cp = Malloc(len);
++	for (i=0; i<numtasks; i++) {
++	    for (cr=nodes[tasks[i].node].name; *cr; cr++)
++		*cq++ = *cr;
++	    *cq++ = ':';
++	}
++	--cq;
++	*cq = '\0';
++	env_add("MPIRUN_PROCESSES", cp);
++	free(cp);
+     }
+ 
+     if (cl_args->comm == COMM_MPICH2_PMI) {

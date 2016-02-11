@@ -1,0 +1,42 @@
+<appendix id="rocks-copyright" xreflabel="Appendix A: Rocks Copyright">
+<title>Rocks Copyright</title>
+<para>
+<screen>
+&rockscopyright;
+</screen>
+</para>
+</appendix>
+
+<appendix>
+<title>Third Party Copyrights and Licenses</title>
+
+&source_roll-copyright-disclaimer;
+
+<section id="pbs-copyright" xreflabel="PBS">
+<title>Torque</title>
+
+<para>
+Torque, Terascale Open Resource Manager, is derived from the open source
+OpenPBS project and incorporates hundreds of community scalability,
+fault tolerance, and feature extension patches provided by NCSA, OSC,
+Sandia, PNNL, U.S. Dept of Energy, TeraGrid, the University of
+Buffalo, and other leading edge HPC organizations along side the
+enhancements provided by Cluster Resources, Inc. This version is based
+upon OpenPBS version 2.3.12 and may be freely redistributed. It not
+neither affiliated with nor endorsed by Altair Grid Technologies. It
+is currently in use at hundreds of leading government, academic, and
+commercial sites throughout the world. Support and other services for
+this product may be requested from Cluster Resources, Inc., or Altair
+as mentioned in the following notice.
+</para>
+<para>
+* This product includes software
+developed by NASA Ames Research Center, Lawrence Livermore National
+Laboratory, and Veridian Information Solutions, Inc. Visit
+www.OpenPBS.org for OpenPBS software support, products, and
+information. OpenPBS is a trademark of Altair Grid
+Technologies/Veridian Information Solution
+</para>
+</section>
+
+</appendix>

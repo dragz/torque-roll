@@ -1,0 +1,15 @@
+modules {
+    module {
+        name = "pbsinfo"
+        language = "python"
+    }
+}
+
+collection_group {
+    collect_every = 60
+    time_threshold = 120
+    metric {
+        name = "pbsinfo"
+        value_threshold = 5.0
+    }
+}

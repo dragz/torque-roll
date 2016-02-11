@@ -1,0 +1,57 @@
+Summary: Replacement for mpirun.
+Name: mpiexec
+Version: @VERSION@
+Release: @RELEASE@
+URL: http://www.osc.edu/~pw/mpiexec/
+Source0: %{name}-%{version}.tgz
+#Patch0: patch_to_ib.c
+License: Copyright (C) 2000-3 Pete Wyckoff <pw@osc.edu>
+Packager: royd@cc.uit.no
+Group: Applications/Engineering
+Prefix: /opt/mpiexec
+BuildPreReq: torque
+BuildRoot: %{_tmppath}/%{name}-root
+
+%description
+Mpiexec is a replacement program for the script mpirun, which is part
+of the mpich package.  It is used to initialize a parallel job from
+within a PBS batch or interactive environment.
+
+%prep
+%setup -q
+#%patch0 -p1
+
+%build
+%configure --prefix=%prefix --with-pbs=/opt/torque --with-default-comm=pmi
+find . -name Makefile | xargs sed -i -e "s|-ltorque|-L/opt/torque/lib -ltorque|g"
+
+make exec_prefix=$RPM_BUILD_ROOT/%prefix bindir=$RPM_BUILD_ROOT/%prefix/bin mandir=$RPM_BUILD_ROOT/%prefix/man/man1
+
+%install
+rm -rf $RPM_BUILD_ROOT
+%makeinstall exec_prefix=$RPM_BUILD_ROOT/%prefix bindir=$RPM_BUILD_ROOT/%prefix/bin mandir=$RPM_BUILD_ROOT/%prefix/man/man1
+
+mkdir -p $RPM_BUILD_ROOT/usr/share/doc/%{name}-%{version}
+cp README ChangeLog LICENSE $RPM_BUILD_ROOT/usr/share/doc/%{name}-%{version}
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-,root,root)
+%docdir /usr/share/doc/%{name}-%{version}
+%docdir /usr/share/man/man1
+%prefix
+/usr/share/doc
+
+%changelog
+* Wed Dec  3 2003 Roy Dragseth <royd@cc.uit.no> - 0.73-4
+- Remade to be used with SPBS.
+
+* Tue Nov 11 2003  <royd@cc.uit.no> - 0.73-3
+- Redone for SPBS
+
+* Mon May 19 2003 Roy Dragseth <royd@cc.uit.no>
+- Initial build.
+
+

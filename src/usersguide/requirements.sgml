@@ -1,0 +1,39 @@
+<chapter id="requirements" xreflabel="Requirements">
+
+
+<title>Requirements</title>
+
+<section id="rocks-version" xreflabel="Rocks Version">
+<title>Rocks Version</title>
+
+<para>
+
+The Torque Roll is for use with Rocks version 5.0.0.
+
+</para>
+
+</section>
+
+
+<section id="other-rolls" xreflabel="Other Rolls">
+<title>Other Rolls</title>
+
+<para>
+
+The Torque Roll is does not require any other Rolls (other than the HPC
+Roll) to be installed on the Frontend.  Compatiblity has been verified
+with the following Rolls.
+
+</para>
+
+<itemizedlist>
+
+<listitem><para>HPC</para></listitem>
+
+</itemizedlist>
+
+
+</section>
+
+
+</chapter>

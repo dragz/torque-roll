@@ -1,0 +1,208 @@
+#
+# $Id: src-torque.spec.in,v 1.15 2006/09/07 21:15:17 royd Exp $
+#
+Summary: torque (Terascale Open Resource Manager)
+Name: torque
+Version: @VERSION@
+Release: @RELEASE@
+Vendor: @VENDOR@
+License: @VENDOR@, (C) 1999-2002
+Group: Applications/Engineering
+Source: %{name}-%{version}.tar.gz
+Buildroot: @VAR@/tmp/%{name}-buildroot
+BuildRequires: readline-devel tcl-devel tk-devel tclx-devel
+Prefix: /opt/torque
+
+%define _prefix /opt/torque
+%define _mandir /opt/torque/man
+
+%ifarch x86_64
+%define pam_dir /lib64/security
+%else
+%define pam_dir /lib/security
+%endif
+
+%description
+Torque is a resource manager providing control over batch jobs and
+distributed compute nodes. Torque is derived from the open source
+OpenPBS project and incorporates hundreds of community scalability,
+fault tolerance, and feature extension patches provided by NCSA, OSC,
+Sandia, PNNL, U.S. Dept of Energy, TeraGrid, the University of
+Buffalo, and other leading edge HPC organizations along side the
+enhancements provided by Cluster Resources, Inc. This version is based
+upon OpenPBS version 2.3.12 and may be freely redistributed. It not
+neither affiliated with nor endorsed by Altair Grid Technologies. It
+is currently in use at hundreds of leading government, academic, and
+commercial sites throughout the world. Support and other services for
+this product may be requested from Cluster Resources, Inc., or Altair
+as mentioned in the following notice. 
+
+* This product includes software
+developed by NASA Ames Research Center, Lawrence Livermore National
+Laboratory, and Veridian Information Solutions, Inc. Visit
+www.OpenPBS.org for OpenPBS software support, products, and
+information. OpenPBS is a trademark of Altair Grid
+Technologies/Veridian Information Solutions, Inc.
+
+PBS provides users with a single coherent interface to all their computing
+resources. Other key features include:
+
+	* Portability: PBS complies with the POSIX 1003.2d standards for
+	  shells, utilities, and batch environments.
+
+	* Configurability: PBS is easy to configure to match the requirements
+	  of individual sites. The flexible job scheduler allows sites to
+	  establish their own scheduling policies for running jobs in both
+	  time-shared and space-shared (dedicated) environments.
+
+	* Adaptability: PBS is adaptable to a wide variety of administrative
+	  policies, and provides an extensible authentication and security
+	  model.
+
+	* Expandability: PBS supports the dynamic distribution of production
+	  workloads across wide-area networks, and the creation of a logical
+	  organization from physically separate entities.
+
+	* Flexibility: PBS supports both interactive and batch jobs.
+
+	* Usability: PBS provides a graphical user interface (GUI) for job
+	  submission, tracking, and administration. 
+
+
+##
+## PREP
+##
+%prep
+
+##
+## SETUP and PATCH
+##
+%setup
+
+
+##
+## BUILD
+##
+%build
+
+
+./configure --prefix=/opt/%{name}  \
+	--with-server-home=/var/spool/%{name} \
+	--with-default-server=rocks.dummy.host \
+	--with-rcp=scp --enable-syslog \
+	--disable-gcc-warnings --enable-docs \
+	--with-pam=%{pam_dir}
+
+make 
+
+##
+## INSTALL
+##
+%install
+
+#this shouldn't be neccessary!!
+#%ifarch x86_64
+#sed -i "/libdir/ s|/lib|/lib64|" pbs-config
+#%endif
+
+#%makeinstall PBS_SERVER_HOME=$RPM_BUILD_ROOT/opt/%{name} pammoddir=$RPM_BUILD_ROOT/%{pam_dir}
+#make prefix=$RPM_BUILD_ROOT/opt/%{name} \
+#	PBS_SERVER_HOME=$RPM_BUILD_ROOT/opt/%{name} install
+
+%{__make} install DESTDIR=$RPM_BUILD_ROOT INSTALL="%{__install} -p"
+
+env DESTDIR=$RPM_BUILD_ROOT sh ./buildutils/pbs_mkdirs common
+cp src/include/tcp.h $RPM_BUILD_ROOT%{prefix}/include
+
+#
+# get the init script from the distro
+#
+mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
+
+cp $RPM_BUILD_DIR/%{name}-%{version}/contrib/init.d/pbs_server \
+	$RPM_BUILD_DIR/%{name}-%{version}/contrib/init.d/pbs_mom \
+	$RPM_BUILD_DIR/%{name}-%{version}/contrib/init.d/trqauthd \
+	$RPM_BUILD_ROOT/etc/rc.d/init.d
+
+#
+# create the appropriate directories used by the PBS services
+#
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/spool
+#chmod a+rw $RPM_BUILD_ROOT/opt/%{name}/spool
+#
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv/jobs
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv/queues
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv/accounting
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv/acl_svr
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv/acl_hosts
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv/acl_users
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_priv/acl_groups
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/server_logs
+#
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/mom_priv
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/mom_priv/jobs
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/mom_logs
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/undelivered
+#
+#rm -rf $RPM_BUILD_ROOT/opt/%{name}/sched_priv
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/sched_priv
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/sched_logs
+#
+#mkdir -p $RPM_BUILD_ROOT/opt/%{name}/aux
+#
+#touch $RPM_BUILD_ROOT/opt/%{name}/pbs_environment
+
+mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d
+
+%ifarch x86_64
+echo /opt/torque/lib64 > $RPM_BUILD_ROOT/etc/ld.so.conf.d/torque.conf
+%else
+echo /opt/torque/lib > $RPM_BUILD_ROOT/etc/ld.so.conf.d/torque.conf
+%endif
+
+%post
+/sbin/ldconfig
+
+
+# FIXME: cannot find tcl on CentOS5.
+# fix the paths.
+%ifarch x86_64
+mkdir -p /opt/torque/lib
+if [ ! -e /opt/torque/lib/xpbs ]; then
+ln -s /opt/torque/lib64/xpbs /opt/torque/lib/xpbs
+fi
+if [ ! -e /opt/torque/lib/xpbsmon ]; then
+ln -s /opt/torque/lib64/xpbsmon /opt/torque/lib/xpbsmon
+fi
+%endif
+
+(cd /opt/torque/lib/xpbsmon ; ./buildindex `pwd`)
+(cd /opt/torque/lib/xpbs ; ./buildindex `pwd`)
+
+##
+## FILES
+##
+%files
+%attr(755,root,root) /etc/rc.d/init.d/
+%config /var/spool/%{name}/server_name
+/opt/%{name}/include/
+/opt/%{name}/lib/
+/opt/%{name}/lib64/
+/opt/%{name}/bin/
+/opt/%{name}/sbin/
+/opt/%{name}/man/
+/etc/ld.so.conf.d/torque.conf
+/etc/rc.d/init.d/
+%{pam_dir}
+/var/spool/%{name}
+
+%doc PBS_License.txt README.torque Release_Notes CHANGELOG
+
+
+##
+## CLEAN
+##
+%clean
+rm -rf $RPM_BUILD_ROOT
+
