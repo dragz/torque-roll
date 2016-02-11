@@ -113,9 +113,6 @@
 	<package>pbs-ganglia</package>
 	<package>pbs-insert-ethers</package>
 	<package>rocks-command-torque</package>
-	<package>mauiweb</package>
-
-
 
 <post>
 
@@ -139,16 +136,13 @@ set queue default started = True
 set server scheduling = True
 set server acl_host_enable = False
 set server server_name = &Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
-set server managers = maui@&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
-set server managers += maui@&Kickstart_PrivateHostname;.&Kickstart_PrivateDNSDomain;
-set server managers += root@&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
+set server managers = root@&Kickstart_PrivateHostname;.&Kickstart_PublicDNSDomain;
 set server managers += root@&Kickstart_PrivateHostname;.&Kickstart_PrivateDNSDomain;
 set server default_queue = default
 set server log_events = 511
 set server mail_from = adm
 set server query_other_jobs = True
 set server allow_node_submit = True
-set server moab_array_compatible = True
 </file>
 
 # make pbs_server listen on private interface

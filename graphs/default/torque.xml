@@ -27,18 +27,12 @@
 	<order head="pbs-common">
 		<tail>pbs-mom</tail>
 		<tail>pbs-server</tail>
-		<tail>maui</tail>
 		<tail>pbs-login</tail>
 	</order>
-
-        <order head="maui">
-                <tail>pbs-login</tail>
-        </order>
 
 	<edge from="login">
 	  <to>pbs-login</to>
 	  <to>pbs-common</to>
-	  <to>maui</to>
 	</edge>
 
 	<edge from="server">
@@ -46,7 +40,6 @@
 	</edge>
 
 	<edge from="pbs-server">
-		<to>maui</to>
 		<to>pbs-common</to>
 	</edge>
 

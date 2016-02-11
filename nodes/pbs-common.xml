@@ -142,14 +142,14 @@ net.ipv4.neigh.default.gc_interval = 3600
 net.ipv4.neigh.default.gc_stale_time = 3600
 </file>
 
-<file name="/etc/profile.d/pbs-maui.sh" perms="755">
-export PATH=$PATH:/opt/maui/bin:/opt/torque/bin:/opt/torque/sbin
+<file name="/etc/profile.d/pbs.sh" perms="755">
+export PATH=$PATH:/opt/torque/bin:/opt/torque/sbin
 
 export MANPATH=/opt/torque/man:$MANPATH
 </file>
 
-<file name="/etc/profile.d/pbs-maui.csh" perms="755">
-set path = ( $path /opt/maui/bin /opt/torque/bin /opt/torque/sbin )
+<file name="/etc/profile.d/pbs.csh" perms="755">
+set path = ( $path /opt/torque/bin /opt/torque/sbin )
 
 if ( $?MANPATH ) then
   setenv MANPATH /opt/torque/man:"$MANPATH"

@@ -104,7 +104,7 @@
 
 
 
-SRCDIRS = dbreport insert-ethers usersguide maui torque mpiexec pbs_python ganglia pbstools rocks-command torque-openmpi
+SRCDIRS = dbreport insert-ethers usersguide torque pbs_python ganglia pbstools rocks-command torque-openmpi
 
 default:	rpm
 
